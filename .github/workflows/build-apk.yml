@@ -55,8 +55,12 @@ jobs:
           path: output/IRON-Trainingstagebuch.apk
 
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: build-${{ github.run_number }}
+          name: IRON Build #${{ github.run_number }}
           files: output/IRON-Trainingstagebuch.apk
           generate_release_notes: true
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

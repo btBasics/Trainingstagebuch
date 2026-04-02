@@ -15,8 +15,8 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set) => ({
   notificationHour: 8,
   notificationMinute: 0,
-  restTimerLong: 180,   // 3 minutes
-  restTimerShort: 90,   // 90 seconds
+  restTimerLong: 210,   // 3.5 minutes
+  restTimerShort: 210,  // 3.5 minutes
   barWeight: 20,
 
   setNotificationTime: (hour, minute) => set({ notificationHour: hour, notificationMinute: minute }),

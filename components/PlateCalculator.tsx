@@ -37,6 +37,7 @@ export default function PlateCalculator({ weight, onDismiss }: Props) {
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onDismiss}>
         <View style={styles.container}>
           <Text style={styles.title}>Scheibenrechner</Text>
+          <Text style={styles.specialistText}>Für Spezialisten</Text>
           <Text style={styles.totalWeight}>{weight} kg</Text>
           <Text style={styles.subtitle}>
             Stange: {barWeight}kg + je Seite: {perSideWeight}kg
@@ -114,6 +115,12 @@ export default function PlateCalculator({ weight, onDismiss }: Props) {
 }
 
 const styles = StyleSheet.create({
+  specialistText: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+    marginBottom: Spacing.xs,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',

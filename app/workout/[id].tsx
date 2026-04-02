@@ -119,12 +119,7 @@ export default function WorkoutScreen() {
     }
   };
 
-  const getRestDuration = () => {
-    if (!currentExercise) return restTimerLong;
-    const workingSets = currentExercise.sets.filter(s => !s.isWarmup);
-    const repsTarget = workingSets[0]?.repsTarget ?? 5;
-    return repsTarget <= 5 ? restTimerLong : restTimerShort;
-  };
+  const getRestDuration = () => 210; // Always 3.5 minutes
 
   if (!currentExercise) {
     return (
@@ -280,7 +275,7 @@ function SetRow({
           <Text style={styles.weightButtonText}>−</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onLongPress={() => onShowPlates(weight)}>
+        <TouchableOpacity onPress={() => onShowPlates(weight)}>
           <Text style={[
             styles.weightValue,
             set.completed && styles.completedText,

@@ -1,8 +1,8 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withSpring,
-  withSequence, withRepeat, withDelay, runOnJS, Easing,
+  withSequence, withRepeat, Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Colors, FontSize } from '../theme/colors';
@@ -24,30 +24,66 @@ const STAGNATION_MESSAGES = [
 
 const FINAL_TEXT = 'M E H R   G E W I C H T .';
 
+// Separate component per message to avoid hooks-in-loop crash
+function FlyingMessage({ message, index, visible }: { message: string; index: number; visible: boolean }) {
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0);
+  const rotate = useSharedValue(0);
+
+  useEffect(() => {
+    if (!visible) return;
+    const fromLeft = Math.random() > 0.5;
+    const startX = fromLeft ? -SCREEN_WIDTH : SCREEN_WIDTH;
+
+    translateX.value = startX;
+    translateY.value = (Math.random() - 0.5) * SCREEN_HEIGHT * 0.6;
+    opacity.value = 0;
+    scale.value = 0.3;
+    rotate.value = (Math.random() - 0.5) * 30;
+
+    translateX.value = withSpring(0, { damping: 8, stiffness: 100 });
+    translateY.value = withSpring(
+      (index - STAGNATION_MESSAGES.length / 2) * 45,
+      { damping: 8 }
+    );
+    opacity.value = withTiming(1, { duration: 200 });
+    scale.value = withSpring(1, { damping: 6 });
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, [visible]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+      { rotate: `${rotate.value}deg` },
+    ],
+    opacity: opacity.value,
+  }));
+
+  if (!visible) return null;
+
+  return (
+    <Animated.View style={[styles.messageContainer, animStyle]}>
+      <Text style={styles.messageText}>{message}</Text>
+    </Animated.View>
+  );
+}
+
 interface Props {
   onDismiss: () => void;
 }
 
 export default function StagnationStorm({ onDismiss }: Props) {
   const [phase, setPhase] = useState<1 | 2 | 3>(1);
-  const [visibleMessages, setVisibleMessages] = useState<number[]>([]);
+  const [visibleMessages, setVisibleMessages] = useState<Set<number>>(new Set());
   const [finalLetters, setFinalLetters] = useState(0);
 
-  // Phase 1: Strobe
-  const strobeOpacity = useSharedValue(1);
   const strobeColor = useSharedValue(0);
   const warningScale = useSharedValue(0.5);
-
-  // Phase 2: Messages fly in
-  const messageAnims = STAGNATION_MESSAGES.map(() => ({
-    translateX: useSharedValue(0),
-    translateY: useSharedValue(0),
-    opacity: useSharedValue(0),
-    scale: useSharedValue(0),
-    rotate: useSharedValue(0),
-  }));
-
-  // Phase 3: Screen shake + final text
   const shakeX = useSharedValue(0);
   const shakeY = useSharedValue(0);
 
@@ -69,7 +105,6 @@ export default function StagnationStorm({ onDismiss }: Props) {
       5, true
     );
 
-    // Haptic strobe
     const hapticInterval = setInterval(() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     }, 200);
@@ -79,30 +114,9 @@ export default function StagnationStorm({ onDismiss }: Props) {
       setPhase(2);
       clearInterval(hapticInterval);
 
-      // Fly in messages one by one
       STAGNATION_MESSAGES.forEach((_, i) => {
         setTimeout(() => {
-          setVisibleMessages(prev => [...prev, i]);
-
-          const fromLeft = Math.random() > 0.5;
-          const startX = fromLeft ? -SCREEN_WIDTH : SCREEN_WIDTH;
-          const startY = (Math.random() - 0.5) * SCREEN_HEIGHT * 0.6;
-
-          messageAnims[i].translateX.value = startX;
-          messageAnims[i].translateY.value = startY;
-          messageAnims[i].opacity.value = 0;
-          messageAnims[i].scale.value = 0.3;
-          messageAnims[i].rotate.value = (Math.random() - 0.5) * 30;
-
-          messageAnims[i].translateX.value = withSpring(0, { damping: 8, stiffness: 100 });
-          messageAnims[i].translateY.value = withSpring(
-            (i - STAGNATION_MESSAGES.length / 2) * 45,
-            { damping: 8 }
-          );
-          messageAnims[i].opacity.value = withTiming(1, { duration: 200 });
-          messageAnims[i].scale.value = withSpring(1, { damping: 6 });
-
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setVisibleMessages(prev => new Set([...prev, i]));
         }, i * 200);
       });
     }, 2000);
@@ -111,7 +125,6 @@ export default function StagnationStorm({ onDismiss }: Props) {
     const phase3Timer = setTimeout(() => {
       setPhase(3);
 
-      // Screen shake
       shakeX.value = withRepeat(
         withSequence(
           withTiming(-8, { duration: 50 }),
@@ -127,7 +140,6 @@ export default function StagnationStorm({ onDismiss }: Props) {
         12, true
       );
 
-      // Final text letter by letter
       const letters = FINAL_TEXT.length;
       for (let i = 0; i < letters; i++) {
         setTimeout(() => {
@@ -184,25 +196,15 @@ export default function StagnationStorm({ onDismiss }: Props) {
             </Animated.View>
           )}
 
-          {/* Phase 2: Messages */}
-          {(phase === 2 || phase === 3) && visibleMessages.map((idx) => {
-            const anim = messageAnims[idx];
-            const msgStyle = useAnimatedStyle(() => ({
-              transform: [
-                { translateX: anim.translateX.value },
-                { translateY: anim.translateY.value },
-                { scale: anim.scale.value },
-                { rotate: `${anim.rotate.value}deg` },
-              ],
-              opacity: anim.opacity.value,
-            }));
-
-            return (
-              <Animated.View key={idx} style={[styles.messageContainer, msgStyle]}>
-                <Text style={styles.messageText}>{STAGNATION_MESSAGES[idx]}</Text>
-              </Animated.View>
-            );
-          })}
+          {/* Phase 2: Messages – each its own component */}
+          {(phase === 2 || phase === 3) && STAGNATION_MESSAGES.map((msg, idx) => (
+            <FlyingMessage
+              key={idx}
+              message={msg}
+              index={idx}
+              visible={visibleMessages.has(idx)}
+            />
+          ))}
 
           {/* Phase 3: Final text */}
           {phase === 3 && (
